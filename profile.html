@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Profile</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+            text-align: center;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        .profile-info {
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            margin: 10px;
+            text-decoration: none;
+            color: #fff;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+        }
+
+        .btn-red {
+            background-color: #ff0000;
+        }
+
+        .btn-green {
+            background-color: #00ff00;
+        }
+
+        .btn-blue {
+            background-color: #007bff;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+        }
+
+        .microphone-icon {
+            font-size: 3em;
+            margin-bottom: 20px;
+            color: #007bff;
+            cursor: pointer;
+        }
+
+        .language-input {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Welcome to Your Profile</h1>
+        <i class="fas fa-microphone microphone-icon" id="microphone"></i>
+        <button class="btn btn-red" id="actionBtn">Start</button>
+        <div class="language-input" style="display:none;">
+            <label for="language">The User said</label>
+            <input type="text" id="language" placeholder="Enter language" /><br>
+            <label for="to_lang">Which language do you want to translate to?</label>
+            <input type="text" id="to_lang" placeholder="Enter target language" />
+            <button class="btn btn-blue" id="submitLanguage">Submit</button>
+        </div>
+        <div class="profile-info">
+            <p><strong>Username:</strong> {{ username }}</p>
+            <p><strong>Email:</strong> {{ user.mailid }}</p>
+            <p><strong>Phone Number:</strong> {{ user.phno }}</p>
+        </div>
+        <a href="/logout" class="btn btn-red">Logout</a>
+    </div>
+
+    <script>
+        let recognizing = false;
+        let recognition = new webkitSpeechRecognition(); // For Chrome
+        recognition.lang = 'en-US'; // Set the language for recognition
+        recognition.interimResults = false; // Get final results
+        recognition.maxAlternatives = 1; // Maximum number of recognition alternatives
+
+        document.getElementById("microphone").addEventListener("click", function () {
+            if (recognizing) {
+                recognition.stop();
+                return;
+            }
+
+            let btn = document.getElementById("actionBtn");
+            btn.classList.remove("btn-red");
+            btn.classList.add("btn-green");
+            btn.innerText = "Listening...";
+
+            recognition.start();
+            recognizing = true;
+
+            recognition.onresult = function (event) {
+                let languageInput = document.querySelector(".language-input");
+                languageInput.style.display = "block";
+
+                let transcript = event.results[0][0].transcript;
+                document.getElementById("language").value = transcript;
+                btn.innerText = "Translate";
+                btn.classList.remove("btn-green");
+                btn.classList.add("btn-blue");
+            };
+
+            recognition.onend = function () {
+                recognizing = false;
+            };
+        });
+
+        document.getElementById("submitLanguage").addEventListener("click", function () {
+            let btn = document.getElementById("actionBtn");
+            btn.classList.remove("btn-blue");
+            btn.classList.add("btn-green");
+            btn.innerText = "Translating...";
+
+            let language = document.getElementById("language").value;
+            let to_lang = document.getElementById("to_lang").value;
+
+            fetch(`/translate_voice?language=${language}&to_lang=${to_lang}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log(data);
+                    if (data.status === "success") {
+                        btn.classList.remove("btn-green");
+                        btn.classList.add("btn-blue");
+                        btn.innerText = "Listen";
+                        let audio = new Audio('captured_voice.mp3');
+                        audio.play();
+                        os.remove('captured_voice.mp3')
+                    } else {
+                        btn.classList.remove("btn-green");
+                        btn.classList.add("btn-red");
+                        btn.innerText = "Start";
+                        alert("Failed to translate voice");
+                    }
+                })
+                .catch(error => {
+                    console.error("Error:", error);
+                    btn.classList.remove("btn-green");
+                    btn.classList.add("btn-red");
+                    btn.innerText = "Start";
+                    
+                });
+        });
+    </script>
+</body>
+
+</html>
